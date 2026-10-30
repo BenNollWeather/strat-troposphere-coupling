@@ -175,7 +175,6 @@
         `from the ERA5 1991–2020 average for the day, minus the ${data.hemisphere_lat}–90°N mean, so hemisphere-wide warmth (including long-term warming) isn’t mistaken for coupling. ` +
         `Starting at 10 hPa, we count how many levels in a row clear the dashed line: ${Object.entries(data.thresholds).map(([l, t]) => `${l} hPa +${t}`).join(", ")}. ` +
         `Stratosphere only = no coupling; reaching 100 hPa = weak; 300 hPa = moderate; 500 hPa = strong.</p>` +
-        `<p>The northern map sits above the southern map. The southern view stays centered on the South Pole, with New Zealand at the top.</p>` +
         `<p>This is an experimental indicator based on the day-15 ensemble mean, which damps signals; a tropospheric response usually lags a stratospheric warming by one to three weeks. ` +
         `Data: ECMWF EPS and AIFS-ENS open data, ERA5. ` +
         `<a href="${data.diagnostics_url}">Diagnostics (text)</a> &middot; <a href="latest.json">latest.json</a></p>`;
