@@ -1,0 +1,101 @@
+name: Polar vortex coupling
+
+# Started on time by AWS EventBridge (aws/eventbridge-github-dispatch.yaml).
+# AIFS-ENS is dispatched every 6 hours. EPS is dispatched every 12 hours.
+# GitHub's own cron is not used, because it can start hours late.
+on:
+  workflow_dispatch:
+    inputs:
+      model:
+        description: "Which model to publish"
+        required: true
+        default: both
+        type: choice
+        options:
+          - aifs-ens
+          - ifs-ens
+          - both
+      force:
+        description: "Redraw even if this run is already published"
+        required: false
+        default: false
+        type: boolean
+      upload_to_s3:
+        description: "Upload maps to S3"
+        required: false
+        default: true
+        type: boolean
+
+concurrency:
+  group: strat-coupling
+  cancel-in-progress: false
+
+permissions:
+  contents: read
+  id-token: write
+
+jobs:
+  privacy:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v4
+      - name: Reject local paths and secrets
+        run: bash scripts/check_public.sh
+
+  coupling:
+    needs: privacy
+    runs-on: ubuntu-latest
+    timeout-minutes: 240
+    env:
+      AWS_REGION: us-east-1
+      PYTHON_CMD: python
+      WORK_DIR: /tmp/strat-coupling
+      MODEL: ${{ inputs.model }}
+      FORCE: ${{ inputs.force }}
+      UPLOAD_TO_S3: ${{ inputs.upload_to_s3 }}
+      PRODUCT_SCHEDULE: EventBridge dispatch when the day-15 files arrive
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: pip
+
+      - name: Install system libraries
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y libeccodes0 libeccodes-dev
+
+      - name: Install Python packages
+        run: |
+          python -m pip install --upgrade pip
+          python -m pip install -r requirements.txt
+          python -c "import eccodes, cartopy, zarr; print('eccodes', eccodes.__version__)"
+
+      - name: Configure temporary AWS credentials
+        if: inputs.upload_to_s3
+        uses: aws-actions/configure-aws-credentials@v6
+        with:
+          role-to-assume: ${{ secrets.AWS_ROLE_ARN }}
+          aws-region: ${{ env.AWS_REGION }}
+          role-session-name: strat-coupling-${{ github.run_id }}
+
+      - name: Render and publish
+        run: bash bin/run
+
+      - name: Confirm downloads were deleted
+        if: always()
+        run: |
+          if [[ -d /tmp/strat-coupling ]]; then
+            echo "work directory still exists" >&2
+            find /tmp/strat-coupling -type f | head
+            exit 1
+          fi
+          if find "${HOME}/.cache/fsspec" -type f 2>/dev/null | grep -q .; then
+            echo "fsspec still holds cached files" >&2
+            find "${HOME}/.cache/fsspec" -type f | head
+            exit 1
+          fi
+          echo "No ECMWF or ARCO working files remain."

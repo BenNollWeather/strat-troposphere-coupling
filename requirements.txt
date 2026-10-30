@@ -1,0 +1,13 @@
+numpy
+pandas
+xarray
+requests
+eccodes
+fsspec
+aiohttp
+zarr>=2.18,<3
+matplotlib
+cartopy
+scipy
+pillow
+tqdm

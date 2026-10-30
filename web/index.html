@@ -1,0 +1,190 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Polar vortex</title>
+<link rel="stylesheet" href="https://fonts.bunny.net/css?family=libre-franklin:400,600,700">
+<style>
+  :root {
+    --bg: #f6f6f4; --card: #ffffff; --ink: #111111; --muted: #5d6166;
+    --line: #e2e2de; --accent: #03afca; --track: #eceae5; --bar-off: #b9bec8; --bar-on: #d23a24;
+    --none: #8a9099; --weak: #e3a21a; --moderate: #ec6a2c; --strong: #b3202f;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root { --bg: #0d1013; --card: #171b20; --ink: #f2f2f2; --muted: #a3a9b0;
+            --line: #2a3038; --accent: #63c5ff; --track: #232932; --bar-off: #5b6370; --bar-on: #ff6b4a;
+            --none: #7d848d; --weak: #f0b43c; --moderate: #f58442; --strong: #ee5a5a; }
+  }
+  * { box-sizing: border-box; }
+  body { margin: 0; background: var(--bg); color: var(--ink);
+         font-family: "Libre Franklin", -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+         font-size: 16px; line-height: 1.45; }
+  header { max-width: 1400px; margin: 0 auto; padding: 28px 24px 8px; }
+  h1 { margin: 0 0 4px; font-size: 28px; letter-spacing: -0.01em; }
+  .meta { color: var(--muted); font-size: 15px; }
+  .meta b { color: var(--ink); font-weight: 600; }
+  nav { margin: 12px 0 4px; display: flex; flex-wrap: wrap; gap: 8px; }
+  nav a { color: inherit; text-decoration: none; font-size: 15px; border: 1px solid var(--line);
+          border-radius: 999px; padding: 7px 11px; background: var(--card); }
+  nav a:hover, nav a:focus-visible { text-decoration: underline; }
+  nav a[aria-current="page"] { border-color: var(--accent); }
+  main { max-width: 1400px; margin: 0 auto; padding: 16px 24px 48px;
+         display: grid; gap: 20px; grid-template-columns: repeat(auto-fill, minmax(420px, 1fr)); }
+  figure { margin: 0; background: var(--card); border: 1px solid var(--line);
+           border-radius: 8px; overflow: hidden; }
+
+  .verdict { padding: 16px 16px 4px; }
+  .headline { display: flex; align-items: center; gap: 12px; }
+  .headline h2 { margin: 0; font-size: 24px; line-height: 1.15; letter-spacing: -0.01em; }
+  .meter { display: flex; gap: 4px; flex: none; }
+  .meter i { width: 10px; height: 22px; border-radius: 3px; background: var(--track); display: block; }
+  .none h2 { color: var(--muted); }
+  .detail { margin: 6px 0 0; color: var(--muted); font-size: 15px; }
+  .model { margin: 0 0 8px; font-size: 13px; letter-spacing: .04em; text-transform: uppercase; color: var(--muted); }
+
+  .chart { padding: 6px 16px 10px; }
+  .chart h3 { margin: 6px 0 2px; font-size: 13px; font-weight: 600; }
+  .chart .sub { margin: 0 0 4px; font-size: 12.5px; color: var(--muted); }
+  .chart svg { width: 100%; height: auto; display: block; max-width: 520px; overflow: visible; }
+  .chart text { fill: var(--ink); font-family: inherit; }
+  .chart .lab { font-size: 12.5px; }
+  .chart .val { font-size: 12.5px; font-weight: 600; }
+  .chart .small { fill: var(--muted); font-size: 11px; }
+  .chart .axis { stroke: var(--muted); stroke-width: 1; }
+  .chart .grid { stroke: var(--line); stroke-width: 1; }
+  .chart .thr { stroke: var(--muted); stroke-width: 1.5; stroke-dasharray: 3 3; }
+
+  .hemi { margin: 10px 16px 0; font-size: 13px; letter-spacing: .04em; text-transform: uppercase; color: var(--muted); }
+  figure a.img { display: block; background: var(--line); border-top: 1px solid var(--line); margin-top: 6px; }
+  figure img { width: 100%; height: auto; display: block; }
+  figcaption { padding: 10px 14px 12px; }
+  figcaption .row { display: flex; justify-content: space-between; align-items: baseline; gap: 12px; }
+  figcaption .name { font-weight: 600; }
+  figcaption a { color: var(--accent); font-size: 14px; text-decoration: none; white-space: nowrap; }
+  figcaption a:hover, figcaption a:focus-visible { text-decoration: underline; }
+  figcaption .info { margin-top: 4px; color: var(--muted); font-size: 14px; }
+  figcaption .info b { color: var(--ink); font-weight: 600; }
+  .empty, .error { grid-column: 1 / -1; color: var(--muted); padding: 40px 0; text-align: center; }
+  footer { max-width: 1400px; margin: 0 auto; padding: 0 24px 32px; color: var(--muted); font-size: 13px; }
+  footer p { margin: 0 0 8px; max-width: 900px; }
+  footer a { color: inherit; }
+</style>
+</head>
+<body>
+<header>
+  <h1>Polar vortex</h1>
+  <nav aria-label="Graphics portal">
+    <a href="/copernicus_imagery/index.html">All graphics</a>
+    <a href="/climate_imagery/weathernext3/index.html">DeepMind storm cards</a>
+    <a href="/copernicus_imagery/index.html">C3S</a>
+    <a href="/copernicus_imagery/snow/index.html">Snow heatmaps</a>
+    <a href="/nmme/imagery/index.html">NMME</a>
+    <a href="/atmospheric_moisture/index.html">ERA5 moisture</a>
+    <a href="/climate_imagery/index.html">Climate imagery</a>
+    <a href="/climate_imagery/strat_coupling/index.html" aria-current="page">Polar vortex</a>
+  </nav>
+  <div class="meta" id="meta">Loading the latest forecasts…</div>
+</header>
+<main id="cards" aria-live="polite"></main>
+<footer id="foot">
+  <p>Updated automatically after each model run.</p>
+</footer>
+<script>
+  const MONTHS = ["Jan.", "Feb.", "March", "April", "May", "June", "July",
+                  "Aug.", "Sept.", "Oct.", "Nov.", "Dec."];
+  const SHORT = { 10: "stratosphere", 100: "tropopause", 300: "jet stream", 500: "mid-troposphere" };
+  const FILLED = { none: 0, weak: 1, moderate: 2, strong: 3 };
+
+  function utcLabel(iso) {
+    const d = new Date(iso);
+    return `${String(d.getUTCHours()).padStart(2, "0")} UTC ${MONTHS[d.getUTCMonth()]} ${d.getUTCDate()}`;
+  }
+  function localLabel(iso) {
+    return new Date(iso).toLocaleString([], { weekday: "short", month: "short", day: "numeric",
+                                                hour: "numeric", minute: "2-digit", timeZoneName: "short" });
+  }
+  const sign = v => (v >= 0 ? "+" : "−") + Math.abs(v).toFixed(1);
+
+  function chartSvg(m) {
+    const W = 520, left = 150, right = 54, top = 4, rowH = 30, n = m.levels.length;
+    const H = top + n * rowH + 26;
+    const lo = -1, hi = Math.max(3, Math.ceil(Math.max(...m.relative_sigma, ...Object.values(m.thresholds)) + 0.5));
+    const x = v => left + (Math.min(hi, Math.max(lo, v)) - lo) / (hi - lo) * (W - left - right);
+    let s = `<svg viewBox="0 0 ${W} ${H}" role="img" aria-label="Northern polar-cap height anomaly by level for ${m.name}">`;
+    for (let t = Math.ceil(lo); t <= hi; t++) {
+      s += `<line class="${t === 0 ? "axis" : "grid"}" x1="${x(t)}" x2="${x(t)}" y1="${top}" y2="${top + n * rowH}"/>`;
+      s += `<text class="small" x="${x(t)}" y="${top + n * rowH + 15}" text-anchor="middle">${t > 0 ? "+" + t : t < 0 ? "−" + Math.abs(t) : "0"}</text>`;
+    }
+    m.levels.forEach((lev, i) => {
+      const v = m.relative_sigma[i], thr = m.thresholds[lev];
+      const y = top + i * rowH, on = v >= thr;
+      const x0 = x(0), x1 = x(v);
+      s += `<text class="lab" x="${left - 10}" y="${y + rowH / 2 + 4}" text-anchor="end">${lev} hPa <tspan class="small">${SHORT[lev] || ""}</tspan></text>`;
+      s += `<rect x="${Math.min(x0, x1)}" y="${y + 6}" width="${Math.max(2, Math.abs(x1 - x0))}" height="${rowH - 12}" rx="3" fill="${on ? "var(--bar-on)" : "var(--bar-off)"}"/>`;
+      s += `<line class="thr" x1="${x(thr)}" x2="${x(thr)}" y1="${y + 2}" y2="${y + rowH - 2}"/>`;
+      s += `<text class="val" x="${Math.max(x0, x1) + 6}" y="${y + rowH / 2 + 4}">${sign(v)}</text>`;
+    });
+    return s + "</svg>";
+  }
+
+  function mapBlock(m, file, label) {
+    if (!file) return "";
+    const bust = `${file}?run=${encodeURIComponent(m.run_utc)}`;
+    return `<p class="hemi">${label}</p>` +
+      `<a class="img" href="${bust}" target="_blank" rel="noopener">` +
+      `<img src="${bust}" alt="${m.name} ${label} stratosphere to troposphere height anomalies" loading="lazy"></a>`;
+  }
+
+  function card(m) {
+    const meter = [0, 1, 2].map(i => `<i style="${i < FILLED[m.rating] ? `background:var(--${m.rating})` : ""}"></i>`).join("");
+    const southLink = m.image_south
+      ? ` · <a href="${m.image_south}?run=${encodeURIComponent(m.run_utc)}" download>South</a>`
+      : "";
+    const fig = document.createElement("figure");
+    fig.innerHTML =
+      `<div class="verdict ${m.rating}">` +
+        `<p class="model">${m.name} &middot; ${m.members} members</p>` +
+        `<div class="headline"><div class="meter" aria-hidden="true">${meter}</div><h2>${m.headline}</h2></div>` +
+        `<p class="detail">${m.detail}</p>` +
+      `</div>` +
+      `<div class="chart"><h3>Northern polar-cap signal by level</h3>` +
+        `<p class="sub">Day ${m.step_hours / 24}: std. dev. above the hemisphere average. Dashed line = level needed to count.</p>` +
+        chartSvg(m) + `</div>` +
+      mapBlock(m, m.image, "Northern Hemisphere") +
+      mapBlock(m, m.image_south, "Southern Hemisphere") +
+      `<figcaption><div class="row"><span class="name">${m.name}</span>` +
+        `<span><a href="${m.image}?run=${encodeURIComponent(m.run_utc)}" download>North</a>${southLink}</span></div>` +
+        `<div class="info">Run <b>${utcLabel(m.run_utc)}</b> &middot; forecast for <b>${utcLabel(m.valid_utc)}</b> (day ${m.step_hours / 24})</div>` +
+        `<div class="info">Updated ${localLabel(m.published_utc)} &middot; ${m.cadence}</div></figcaption>`;
+    return fig;
+  }
+
+  async function load() {
+    const meta = document.getElementById("meta"), grid = document.getElementById("cards"), foot = document.getElementById("foot");
+    try {
+      const res = await fetch(`latest.json?t=${Date.now()}`, { cache: "no-store" });
+      if (!res.ok) throw new Error(`HTTP ${res.status}`);
+      const data = await res.json();
+      meta.innerHTML = `Could a stratospheric warming couple to the troposphere? Ensemble-mean height anomalies at ` +
+        `${data.levels.join(", ")} hPa &middot; checked ${localLabel(data.generated_utc)}`;
+      grid.innerHTML = "";
+      data.models.forEach(m => grid.appendChild(card(m)));
+      foot.innerHTML =
+        `<p><b>How the headline is set.</b> For each northern level we take the polar-cap (${data.cap_lat}–90°N) mean height anomaly, in standard deviations ` +
+        `from the ERA5 1991–2020 average for the day, minus the ${data.hemisphere_lat}–90°N mean, so hemisphere-wide warmth (including long-term warming) isn’t mistaken for coupling. ` +
+        `Starting at 10 hPa, we count how many levels in a row clear the dashed line: ${Object.entries(data.thresholds).map(([l, t]) => `${l} hPa +${t}`).join(", ")}. ` +
+        `Stratosphere only = no coupling; reaching 100 hPa = weak; 300 hPa = moderate; 500 hPa = strong.</p>` +
+        `<p>The northern map sits above the southern map. The southern view stays centered on the South Pole, with New Zealand at the top.</p>` +
+        `<p>This is an experimental indicator based on the day-15 ensemble mean, which damps signals; a tropospheric response usually lags a stratospheric warming by one to three weeks. ` +
+        `Data: ECMWF EPS and AIFS-ENS open data, ERA5. ` +
+        `<a href="${data.diagnostics_url}">Diagnostics (text)</a> &middot; <a href="latest.json">latest.json</a></p>`;
+    } catch (err) {
+      meta.textContent = "Could not load the latest forecasts.";
+      grid.innerHTML = `<p class="error">${err.message}</p>`;
+    }
+  }
+  load();
+</script>
+</body>
+</html>

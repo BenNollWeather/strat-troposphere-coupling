@@ -1,0 +1,10 @@
+__pycache__/
+*.pyc
+.DS_Store
+config/settings.local.env
+logs/
+*.grib
+*.grib2
+*.nc
+*.npz
+*.zarr

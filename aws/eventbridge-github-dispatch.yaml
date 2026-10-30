@@ -1,0 +1,138 @@
+AWSTemplateFormatVersion: "2010-09-09"
+Description: >
+  Starts the polar-vortex workflow from EventBridge when a model cycle should
+  have finished. Deploy twice: once for AIFS-ENS and once for EPS. Reuse the
+  shared GitHub connection via ExistingConnectionArn.
+
+Parameters:
+  GitHubToken:
+    Type: String
+    NoEcho: true
+    Default: ""
+    Description: Used only when creating the shared connection. Leave blank to reuse one.
+  ExistingConnectionArn:
+    Type: String
+    Default: ""
+    Description: Connection from an earlier stack. Leave blank only for the first stack.
+  Repository:
+    Type: String
+    Default: BenNollWeather/strat-troposphere-coupling
+  WorkflowFile:
+    Type: String
+    Default: coupling.yml
+  Ref:
+    Type: String
+    Default: main
+  Model:
+    Type: String
+    Default: aifs-ens
+    AllowedValues:
+      - aifs-ens
+      - ifs-ens
+  ScheduleExpression:
+    Type: String
+    Default: "cron(55 1,7,13,19 * * ? *)"
+    Description: >
+      AIFS-ENS day-15 files are usually complete about 7 h 45 m after 00, 06,
+      12 and 18 UTC, so the rule fires at 01:55, 07:55, 13:55 and 19:55 UTC.
+      EPS day-15 files are usually complete about 8 h 25 m after 00 and 12 UTC;
+      use cron(35 8,20 * * ? *) for 08:35 and 20:35 UTC.
+  RuleName:
+    Type: String
+    Default: strat-coupling-aifs-dispatch
+
+Conditions:
+  CreateConnection: !Equals [!Ref ExistingConnectionArn, ""]
+
+Resources:
+  GitHubConnection:
+    Type: AWS::Events::Connection
+    Condition: CreateConnection
+    Properties:
+      Name: github-workflow-dispatch
+      Description: GitHub API token for workflow_dispatch calls
+      AuthorizationType: API_KEY
+      AuthParameters:
+        ApiKeyAuthParameters:
+          ApiKeyName: Authorization
+          ApiKeyValue: !Sub "Bearer ${GitHubToken}"
+        InvocationHttpParameters:
+          HeaderParameters:
+            - Key: Accept
+              Value: application/vnd.github+json
+            - Key: X-GitHub-Api-Version
+              Value: "2022-11-28"
+
+  DispatchDestination:
+    Type: AWS::Events::ApiDestination
+    Properties:
+      Name: !Sub "${RuleName}-destination"
+      ConnectionArn: !If [CreateConnection, !GetAtt GitHubConnection.Arn, !Ref ExistingConnectionArn]
+      HttpMethod: POST
+      InvocationEndpoint: !Sub "https://api.github.com/repos/${Repository}/actions/workflows/${WorkflowFile}/dispatches"
+      InvocationRateLimitPerSecond: 1
+
+  InvokeRole:
+    Type: AWS::IAM::Role
+    Properties:
+      AssumeRolePolicyDocument:
+        Version: "2012-10-17"
+        Statement:
+          - Effect: Allow
+            Principal: { Service: events.amazonaws.com }
+            Action: sts:AssumeRole
+      Policies:
+        - PolicyName: invoke-github-dispatch
+          PolicyDocument:
+            Version: "2012-10-17"
+            Statement:
+              - Effect: Allow
+                Action: events:InvokeApiDestination
+                Resource: !GetAtt DispatchDestination.Arn
+
+  DispatchRule:
+    Type: AWS::Events::Rule
+    Properties:
+      Name: !Ref RuleName
+      Description: !Sub "Dispatch ${Repository} ${WorkflowFile} for ${Model}"
+      ScheduleExpression: !Ref ScheduleExpression
+      State: ENABLED
+      Targets:
+        - Id: github-workflow-dispatch
+          Arn: !GetAtt DispatchDestination.Arn
+          RoleArn: !GetAtt InvokeRole.Arn
+          Input: !Sub '{"ref":"${Ref}","inputs":{"model":"${Model}","upload_to_s3":"true","force":"false"}}'
+          RetryPolicy:
+            MaximumRetryAttempts: 2
+            MaximumEventAgeInSeconds: 3600
+          DeadLetterConfig:
+            Arn: !GetAtt FailedDispatchQueue.Arn
+
+  FailedDispatchQueue:
+    Type: AWS::SQS::Queue
+    Properties:
+      QueueName: !Sub "${RuleName}-failed"
+      MessageRetentionPeriod: 345600
+
+  FailedDispatchQueuePolicy:
+    Type: AWS::SQS::QueuePolicy
+    Properties:
+      Queues: [!Ref FailedDispatchQueue]
+      PolicyDocument:
+        Version: "2012-10-17"
+        Statement:
+          - Effect: Allow
+            Principal: { Service: events.amazonaws.com }
+            Action: sqs:SendMessage
+            Resource: !GetAtt FailedDispatchQueue.Arn
+            Condition:
+              ArnEquals:
+                aws:SourceArn: !GetAtt DispatchRule.Arn
+
+Outputs:
+  ConnectionArn:
+    Value: !If [CreateConnection, !GetAtt GitHubConnection.Arn, !Ref ExistingConnectionArn]
+  RuleName:
+    Value: !Ref DispatchRule
+  FailedDispatchQueueUrl:
+    Value: !Ref FailedDispatchQueue

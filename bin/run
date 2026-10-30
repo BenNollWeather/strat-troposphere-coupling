@@ -1,0 +1,82 @@
+#!/usr/bin/env bash
+# Render and publish the polar-vortex maps, then delete every working file.
+set -euo pipefail
+
+PROJECT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
+set -a
+# shellcheck disable=SC1091
+source "${PROJECT_DIR}/config/settings.env"
+set +a
+
+if [[ -f "${PROJECT_DIR}/config/settings.local.env" ]]; then
+  echo "Refusing to read config/settings.local.env" >&2
+  exit 1
+fi
+
+WORK_DIR="${WORK_DIR:-/tmp/strat-coupling}"
+case "${WORK_DIR}" in
+  /|""|"${HOME}"|"${HOME}"/*|*/Downloads|*/Downloads/*)
+    echo "WORK_DIR must be a temporary directory outside the home folder" >&2
+    exit 1
+    ;;
+esac
+
+mkdir -p "${WORK_DIR}/tmp" "${WORK_DIR}/xdg" "${WORK_DIR}/mpl" "${WORK_DIR}/cartopy" "${WORK_DIR}/out"
+export WORK_DIR
+export TMPDIR="${WORK_DIR}/tmp"
+export XDG_CACHE_HOME="${WORK_DIR}/xdg"
+export MPLCONFIGDIR="${WORK_DIR}/mpl"
+export CARTOPY_DATA_DIR="${WORK_DIR}/cartopy"
+export MPLBACKEND="${MPLBACKEND:-Agg}"
+export PYTHONUNBUFFERED=1
+export PYTHONDONTWRITEBYTECODE=1
+unset AWS_PROFILE AWS_CA_BUNDLE REQUESTS_CA_BUNDLE || true
+
+STARTED_EPOCH="$(date -u +%s)"
+STARTED_UTC="$(date -u +%Y-%m-%dT%H:%M:%SZ)"
+export STARTED_EPOCH STARTED_UTC
+
+MODEL="${MODEL:-both}"
+case "${MODEL}" in
+  aifs-ens) PRODUCTS=(strat-coupling-aifs) ;;
+  ifs-ens) PRODUCTS=(strat-coupling-eps) ;;
+  both) PRODUCTS=(strat-coupling-eps strat-coupling-aifs) ;;
+  *) echo "Unknown model: ${MODEL}" >&2; exit 1 ;;
+esac
+export PRODUCT_SCHEDULE="${PRODUCT_SCHEDULE:-EventBridge dispatch when the day-15 files arrive}"
+
+report_failure() {
+  [[ "${UPLOAD_TO_S3:-true}" == "true" ]] || return 0
+  local product runtime out
+  runtime=$(( $(date -u +%s) - STARTED_EPOCH ))
+  for product in "${PRODUCTS[@]}"; do
+    out="/tmp/${product}-failure-$$.json"
+    "${PYTHON_CMD}" "${PROJECT_DIR}/scripts/report_status.py" \
+      --product "${product}" --status failure \
+      --started-utc "${STARTED_UTC}" --runtime-seconds "${runtime}" \
+      --schedule "${PRODUCT_SCHEDULE}" --outputs-json "[]" \
+      --message "Run failed. ECMWF and ARCO downloads were deleted." \
+      --output "${out}" >/dev/null || return 0
+    aws s3 cp "${out}" "${STATUS_S3_PREFIX%/}/${product}.json" \
+      --content-type application/json --cache-control "no-cache, max-age=0" --only-show-errors || true
+    rm -f "${out}"
+  done
+}
+
+cleanup() {
+  local status=$?
+  case "${WORK_DIR}" in
+    /|""|"${HOME}"|"${HOME}"/*) ;;
+    *) rm -rf "${WORK_DIR}" ;;
+  esac
+  if [[ "${status}" -ne 0 ]]; then
+    report_failure || true
+  fi
+  exit "${status}"
+}
+trap cleanup EXIT INT TERM
+
+args=(--model "${MODEL}")
+[[ "${FORCE:-false}" == "true" ]] && args+=(--force)
+[[ "${UPLOAD_TO_S3:-true}" == "false" ]] && args+=(--no-upload)
+"${PYTHON_CMD}" "${PROJECT_DIR}/scripts/coupling.py" "${args[@]}"
