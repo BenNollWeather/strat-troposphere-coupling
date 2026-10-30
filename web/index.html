@@ -75,15 +75,15 @@
 <header>
   <h1>Polar vortex</h1>
   <nav aria-label="Graphics portal">
-    <a href="/copernicus_imagery/index.html">All graphics</a>
-    <a href="/latest_posts">Latest posts</a>
-    <a href="/climate_imagery/weathernext3/index.html">DeepMind storm cards</a>
-    <a href="/copernicus_imagery/index.html">C3S</a>
-    <a href="/copernicus_imagery/snow/index.html">Snow heatmaps</a>
-    <a href="/nmme/imagery/index.html">NMME</a>
-    <a href="/atmospheric_moisture/index.html">ERA5 moisture</a>
-    <a href="/climate_imagery/index.html">Climate imagery</a>
-    <a href="/climate_imagery/strat_coupling/index.html" aria-current="page">Polar vortex</a>
+    <a href="/copernicus">All graphics</a>
+    <a href="/">Latest posts</a>
+    <a href="/deepmind">DeepMind storm cards</a>
+    <a href="/copernicus">C3S</a>
+    <a href="/snow">Snow heatmaps</a>
+    <a href="/nmme">NMME</a>
+    <a href="/moisture">ERA5 moisture</a>
+    <a href="/climate">Climate imagery</a>
+    <a href="/polar_vortex" aria-current="page">Polar vortex</a>
     <a href="/newsletter">Newsletter</a>
   </nav>
   <div class="meta" id="meta">Loading the latest forecasts…</div>
@@ -130,9 +130,15 @@
     return s + "</svg>";
   }
 
+  const ASSET_ROOT = "/climate_imagery/strat_coupling/";
+  function asset(file) {
+    if (!file || /^(https?:|\/)/.test(file)) return file;
+    return ASSET_ROOT + file.replace(/^\.\//, "");
+  }
+
   function mapBlock(m, file, label) {
     if (!file) return "";
-    const bust = `${file}?run=${encodeURIComponent(m.run_utc)}`;
+    const bust = `${asset(file)}?run=${encodeURIComponent(m.run_utc)}`;
     return `<p class="hemi">${label}</p>` +
       `<a class="img" href="${bust}" target="_blank" rel="noopener">` +
       `<img src="${bust}" alt="${m.name} ${label} stratosphere to troposphere height anomalies" loading="lazy"></a>`;
@@ -141,7 +147,7 @@
   function card(m) {
     const meter = [0, 1, 2].map(i => `<i style="${i < FILLED[m.rating] ? `background:var(--${m.rating})` : ""}"></i>`).join("");
     const southLink = m.image_south
-      ? ` · <a href="${m.image_south}?run=${encodeURIComponent(m.run_utc)}" download>South</a>`
+      ? ` · <a href="${asset(m.image_south)}?run=${encodeURIComponent(m.run_utc)}" download>South</a>`
       : "";
     const fig = document.createElement("figure");
     fig.innerHTML =
@@ -156,7 +162,7 @@
       mapBlock(m, m.image, "Northern Hemisphere") +
       mapBlock(m, m.image_south, "Southern Hemisphere") +
       `<figcaption><div class="row"><span class="name">${m.name}</span>` +
-        `<span><a href="${m.image}?run=${encodeURIComponent(m.run_utc)}" download>North</a>${southLink}</span></div>` +
+        `<span><a href="${asset(m.image)}?run=${encodeURIComponent(m.run_utc)}" download>North</a>${southLink}</span></div>` +
         `<div class="info">Run <b>${utcLabel(m.run_utc)}</b> &middot; forecast for <b>${utcLabel(m.valid_utc)}</b> (day ${m.step_hours / 24})</div>` +
         `<div class="info">Updated ${localLabel(m.published_utc)} &middot; ${m.cadence}</div></figcaption>`;
     return fig;
@@ -165,7 +171,7 @@
   async function load() {
     const meta = document.getElementById("meta"), grid = document.getElementById("cards"), foot = document.getElementById("foot");
     try {
-      const res = await fetch(`latest.json?t=${Date.now()}`, { cache: "no-store" });
+      const res = await fetch(`/climate_imagery/strat_coupling/latest.json?t=${Date.now()}`, { cache: "no-store" });
       if (!res.ok) throw new Error(`HTTP ${res.status}`);
       const data = await res.json();
       meta.innerHTML = `Could a stratospheric warming couple to the troposphere? Ensemble-mean height anomalies at ` +
@@ -179,7 +185,7 @@
         `Stratosphere only = no coupling; reaching 100 hPa = weak; 300 hPa = moderate; 500 hPa = strong.</p>` +
         `<p>This is an experimental indicator based on the day-15 ensemble mean, which damps signals; a tropospheric response usually lags a stratospheric warming by one to three weeks. ` +
         `Data: ECMWF EPS and AIFS-ENS open data, ERA5. ` +
-        `<a href="${data.diagnostics_url}">Diagnostics (text)</a> &middot; <a href="latest.json">latest.json</a></p>`;
+        `<a href="${asset(data.diagnostics_url)}">Diagnostics (text)</a> &middot; <a href="${ASSET_ROOT}latest.json">latest.json</a></p>`;
     } catch (err) {
       meta.textContent = "Could not load the latest forecasts.";
       grid.innerHTML = `<p class="error">${err.message}</p>`;
