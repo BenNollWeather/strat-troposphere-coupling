@@ -36,6 +36,22 @@ def test_expected_cycles_match_the_schedule():
     assert coupling.expected_run("ifs-ens", datetime(2026, 10, 30, 16, 0)) == datetime(2026, 10, 30, 0)
 
 
+def test_era5_index_is_hours_since_1959():
+    assert coupling.era5_time_index(datetime(1959, 1, 1), 552264) == 0
+    assert coupling.era5_time_index(datetime(1959, 1, 1, 18), 552264) == 18
+    # 1959-01-01 through 2021-12-31 is 552264 hourly steps.
+    assert coupling.era5_time_index(datetime(2021, 12, 31, 23), 552264) == 552263
+    # Feb. 29 in a non-leap year uses Feb. 28, which is inside the record.
+    stamp = coupling._era5_time(1991, 2, 29, 12)
+    assert stamp == datetime(1991, 2, 28, 12)
+    assert 0 < coupling.era5_time_index(stamp, 552264) < 552264
+    try:
+        coupling.era5_time_index(datetime(2022, 1, 1), 552264)
+    except RuntimeError:
+        return
+    raise AssertionError("a time after the ARCO record should be rejected")
+
+
 def test_half_degree_split_keeps_both_poles():
     lat = np.linspace(90, -90, 721)[:, None] * np.ones((1, 1440))
     parts = coupling.subsample_quarter_degree(lat.astype(np.float32))

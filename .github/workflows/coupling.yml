@@ -98,4 +98,13 @@ jobs:
             find "${HOME}/.cache/fsspec" -type f | head
             exit 1
           fi
+          leaked=$(find /tmp "${HOME}/.cache" \( \
+            -name '*.grib' -o -name '*.grib2' -o -name '*.grb' -o -name '*.grb2' \
+            -o -name '*.npz' -o -name '*.nc' -o -name '*.nc4' -o -name '*.zarr' \
+          \) 2>/dev/null || true)
+          if [[ -n "${leaked}" ]]; then
+            echo "downloaded forecast files are still on disk" >&2
+            printf '%s\n' "${leaked}" | head
+            exit 1
+          fi
           echo "No ECMWF or ARCO working files remain."

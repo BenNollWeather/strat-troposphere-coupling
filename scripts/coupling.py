@@ -496,23 +496,43 @@ def _ensemble_mean(session, model: str, run: datetime) -> tuple[dict[str, np.nda
     return means, n_members
 
 
+def era5_time_index(stamp: datetime, size: int) -> int:
+    """Hour offset from 1959-01-01 00:00 on the ARCO hourly axis."""
+    hours = int((stamp - datetime(1959, 1, 1)).total_seconds() // 3600)
+    if hours < 0 or hours >= size:
+        raise RuntimeError(
+            f"ERA5 time {stamp:%Y-%m-%d %H}Z is outside the ARCO record ({size} hours)"
+        )
+    return hours
+
+
 def _arco():
     import fsspec
-    import xarray as xr
     import zarr
     # readahead keeps blocks in memory. filecache would write the chunks to disk.
+    # xarray.open_zarr is not used: current xarray passes zarr_format, which zarr 2 rejects.
     store = fsspec.get_mapper(ARCO_URL, cache_type="readahead")
-    meta = xr.open_zarr(store, consolidated=True, chunks=None)
     group = zarr.open_consolidated(store, mode="r")
-    levels = [int(v) for v in meta["level"].values]
-    return group, meta.indexes["time"], [levels.index(level) for level in LEVELS]
+    units = str(group["time"].attrs.get("units", ""))
+    if units != "hours since 1959-01-01 00:00:00":
+        raise RuntimeError(f"unexpected ARCO time units: {units}")
+    size = int(group["time"].shape[0])
+    first, last = int(group["time"][0]), int(group["time"][-1])
+    if first != 0 or last != size - 1:
+        raise RuntimeError(
+            f"ARCO time axis is not hourly from 1959-01-01 ({first} … {last}, {size} hours)"
+        )
+    levels = [int(v) for v in np.asarray(group["level"][:]).tolist()]
+    missing = [level for level in LEVELS if level not in levels]
+    if missing:
+        raise RuntimeError(f"ARCO level axis is missing {missing}")
+    return group, size, [levels.index(level) for level in LEVELS]
 
 
-def _era5_time(year: int, month: int, day: int, hour: int):
-    import pandas as pd
+def _era5_time(year: int, month: int, day: int, hour: int) -> datetime:
     if month == 2 and day == 29 and not calendar.isleap(year):
         day = 28
-    return pd.Timestamp(year, month, day, hour)
+    return datetime(year, month, day, hour)
 
 
 def _read_era5(group, level_idx, ti: int, tries: int = 4) -> tuple[np.ndarray, np.ndarray]:
@@ -539,9 +559,12 @@ def _climatology(valid: datetime) -> dict[str, tuple[np.ndarray, np.ndarray]]:
     from tqdm.auto import tqdm
     if valid.hour % 6 != 0:
         raise RuntimeError("ERA5 climatology is read at 6-hourly valid times")
-    group, times, level_idx = _arco()
+    group, n_times, level_idx = _arco()
     years = list(range(CLIM_START, CLIM_END + 1))
-    indexes = [int(times.get_loc(_era5_time(year, valid.month, valid.day, valid.hour))) for year in years]
+    indexes = [
+        era5_time_index(_era5_time(year, valid.month, valid.day, valid.hour), n_times)
+        for year in years
+    ]
     sums = {hem: np.zeros((len(LEVELS), N_LAT, N_LON), np.float64) for hem in HEMISPHERES}
     squares = {hem: np.zeros_like(sums[hem]) for hem in HEMISPHERES}
     workers = int(os.environ.get("CLIM_WORKERS", "8"))
