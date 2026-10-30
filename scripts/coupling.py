@@ -973,6 +973,7 @@ def run(args: argparse.Namespace, work: Path) -> None:
     _s3_cp(diagnostics, s3_prefix + "coupling_diagnostics.txt", "text/plain; charset=utf-8")
     _s3_cp(latest_path, s3_prefix + "latest.json", "application/json")
     _s3_cp(Path(args.page), s3_prefix + "index.html", "text/html; charset=utf-8")
+    _s3_cp(Path(args.page), f"s3://{s3_prefix.split('/')[2]}/polar_vortex", "text/html; charset=utf-8")
 
     status_prefix = os.environ.get(
         "STATUS_S3_PREFIX", "s3://bennollweather/climate_imagery/status"
