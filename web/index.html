@@ -58,6 +58,7 @@
   nav .panel { position: absolute; z-index: 30; top: calc(100% + 6px); left: 0; display: grid; gap: 6px; min-width: 190px; padding: 8px; border: 1px solid var(--line); border-radius: 12px; background: var(--card); box-shadow: 0 8px 24px rgba(0,0,0,.12); }
   nav .panel a, nav .panel summary { display: block; text-align: left; }
   nav .menu .menu .panel { position: static; min-width: 0; margin-top: 6px; padding: 0 0 0 8px; border: 0; border-radius: 0; background: transparent; box-shadow: none; }
+  nav .bot-posts a { max-width: 280px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
   @media (max-width: 650px) {
     nav .panel { position: static; margin-top: 6px; box-shadow: none; }
   }
@@ -137,7 +138,18 @@
         </div>
         </details>
         <a href="/moisture">Moisture</a>
-        <a href="/deepmind">DeepMind</a>
+        <details class="menu">
+        <summary>DeepMind</summary>
+        <div class="panel">
+        <a href="/deepmind">Storm cards</a>
+        <details class="menu">
+        <summary>Hurricane bot</summary>
+        <div class="panel bot-posts" id="hurricane-bot">
+        <a href="https://x.com/GoogDeepMindBot">On X</a>
+        </div>
+        </details>
+        </div>
+        </details>
         <a href="/polar_vortex" aria-current="page">Polar vortex</a>
         <a href="/climate_imagery/index.html">Climate stuff</a>
         </div>
@@ -154,6 +166,25 @@
           if (event.key !== "Escape") return;
           nav.querySelectorAll("details[open]").forEach(function (menu) { menu.open = false; });
         });
+        var bot = nav.querySelector("#hurricane-bot");
+        if (bot) {
+          fetch("/latest_posts/deepmind_bot.json", {cache: "no-store"}).then(function (res) {
+            if (!res.ok) throw new Error(String(res.status));
+            return res.json();
+          }).then(function (data) {
+            var posts = data && data.posts ? data.posts.slice(0, 5) : [];
+            var links = posts.map(function (post) {
+              if (!post || !/^https:\/\/x\.com\/GoogDeepMindBot\/status\/\d+$/.test(post.url)) return null;
+              var anchor = document.createElement("a");
+              var text = String(post.text || "").replace(/\s+/g, " ").trim();
+              anchor.href = post.url;
+              anchor.textContent = text;
+              anchor.title = text;
+              return anchor;
+            }).filter(Boolean);
+            if (links.length) bot.replaceChildren.apply(bot, links);
+          }).catch(function () {});
+        }
       })();
       </script>
       </nav>
