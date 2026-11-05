@@ -55,12 +55,13 @@
   nav a:hover, nav a:focus-visible, nav summary:hover, nav summary:focus-visible { text-decoration: underline; }
   nav a[aria-current="page"], nav .menu:has(a[aria-current="page"]) > summary { border-color: var(--accent); font-weight: 700; }
   nav .menu { position: relative; }
+  nav > details.menu:last-of-type > .panel { left: auto; right: 0; }
   nav .panel { position: absolute; z-index: 30; top: calc(100% + 6px); left: 0; display: grid; gap: 6px; min-width: 190px; padding: 8px; border: 1px solid var(--line); border-radius: 12px; background: var(--card); box-shadow: 0 8px 24px rgba(0,0,0,.12); }
   nav .panel a, nav .panel summary { display: block; text-align: left; }
   nav .menu .menu .panel { position: static; min-width: 0; margin-top: 6px; padding: 0 0 0 8px; border: 0; border-radius: 0; background: transparent; box-shadow: none; }
   @media (max-width: 650px) {
     nav { align-items: flex-start; }
-    nav .panel { position: static; margin-top: 6px; box-shadow: none; }
+    nav > details.menu > .panel { max-height: calc(100vh - 140px); overflow: auto; }
   }
   main { max-width: 1400px; margin: 0 auto; padding: 16px 24px 48px;
          display: grid; gap: 20px; grid-template-columns: repeat(auto-fill, minmax(420px, 1fr)); }
@@ -141,8 +142,8 @@
         <details class="menu">
         <summary>Snow</summary>
         <div class="panel">
-        <a href="/snow">Anomaly</a>
-        <a href="/snow#forecast">Forecast</a>
+        <a href="/snow-anomaly">Anomaly</a>
+        <a href="/snow-forecast">Forecast</a>
         </div>
         </details>
         <details class="menu">
